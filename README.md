@@ -43,13 +43,14 @@ A modular MicroPython project that simulates an oil pressure gauge using a poten
 ## 📁 Project Structure
 
 ```
-oil-gauge-pico/
-├── main.py            # Initializes modules and runs main loop
-├── adc.py             # Reads analog values from MCP3008
-├── ble.py             # BLE advertising and data transmission
-├── display.py         # LCD display logic
-├── utils.py           # Helper functions (e.g., value scaling)
-└── README.md          # Project documentation
+blepico_oilgauge/
+├── main.py            # Entry point: initializes modules and runs main loop
+├── ble_service.py     # BLE advertising and data transmission logic
+├── cpuoilpressure.py  # Reads and processes oil pressure data from MCP3008
+├── display.py         # LCD display logic via I²C
+├── mcp3008.py         # SPI interface for MCP3008 ADC
+├── README.md          # Project documentation
+├── .gitattributes     # Git settings (optional)
 ```
 
 ## 🚀 Getting Started
