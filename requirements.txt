@@ -1,0 +1,10 @@
+# Oil Gauge BLE Client Dependencies
+
+# BLE communication
+bleak>=0.21.0
+
+# Graph visualization
+matplotlib>=3.7.0
+
+# Build tools (optional - for creating executables)
+pyinstaller>=6.0.0
