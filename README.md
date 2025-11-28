@@ -1,6 +1,6 @@
 # Oil Pressure Gauge — Raspberry Pi Pico WH + BLE
 
-A MicroPython project that reads oil pressure from an analog sensor via MCP3008 ADC, displays readings on an LCD, and transmits data over Bluetooth Low Energy to PC/mobile clients.
+A MicroPython project that reads oil pressure from an analog sensor via MCP3008 ADC, displays readings on an LCD, and transmits data over Bluetooth Low Energy to a Windows PC client.
 
 ## Features
 
@@ -9,14 +9,94 @@ A MicroPython project that reads oil pressure from an analog sensor via MCP3008 
 - Voltage divider support for 0-5V sensors
 - Real-time BLE transmission with error detection
 - 1602 LCD display with connection status
-- Comprehensive error checking (over/under voltage, floating signal, out-of-range)
 
 **PC Client**
 - Modern GUI with radial pressure gauge
 - Real-time graph with history
 - Session recording, save & load (JSON)
-- BLE device scanning and connection management
-- CLI client for headless operation
+- Export to CSV and print reports
+- Standalone `.exe` - no installation required
+
+---
+
+## Quick Start
+
+### Step 1: Set Up the Pico WH (Using Thonny)
+
+1. **Install Thonny** from [thonny.org](https://thonny.org/)
+
+2. **Connect your Pico WH** via USB
+
+3. **Open Thonny** and select:
+   - **Run → Configure interpreter**
+   - Choose **"MicroPython (Raspberry Pi Pico)"**
+   - Select your COM port
+
+4. **Copy all files from the `pico/` folder to your Pico:**
+   - In Thonny, go to **View → Files** to show the file browser
+   - On the left (your computer), navigate to the `pico/` folder
+   - Select each file, right-click → **"Upload to /"**
+   
+   Files to upload:
+   ```
+   pico/
+   ├── boot.py          # Startup script
+   ├── main.py          # Main program
+   ├── ble_service.py   # BLE service
+   ├── mcp3008.py       # ADC driver
+   └── error_check.py   # Error detection
+   ```
+
+5. **Install the LCD library** (if using 1602 LCD):
+   - In Thonny: **Tools → Manage packages**
+   - Search for `lcd_i2c` or `i2c_lcd` and install
+
+6. **Unplug and replug the Pico** - it will start automatically!
+
+### Step 2: Install the PC Client
+
+**Option A: Download the Release (Recommended)**
+1. Go to the [Releases](../../releases) page
+2. Download `OilGaugeMonitor.exe`
+3. Run it - no installation needed!
+
+**Option B: Run from Source**
+```bash
+cd client
+pip install -r requirements.txt
+python client_gui.py
+```
+
+### Step 3: Connect!
+
+1. Power on your Pico WH (LCD should show "BLE: Waiting")
+2. Open `OilGaugeMonitor.exe` on your PC
+3. Click **Connect**
+4. Watch your pressure readings in real-time!
+
+---
+
+## Project Structure
+
+```
+blepico_oilgauge/
+├── pico/                    # Pico WH firmware (upload to device)
+│   ├── boot.py              # Startup script
+│   ├── main.py              # Main program loop
+│   ├── ble_service.py       # BLE peripheral service
+│   ├── mcp3008.py           # MCP3008 ADC driver
+│   └── error_check.py       # Sensor fault detection
+│
+├── client/                  # Windows PC client
+│   ├── client_gui.py        # GUI application
+│   ├── client.py            # CLI client
+│   ├── build.py             # Build script for .exe
+│   └── requirements.txt     # Python dependencies
+│
+└── README.md
+```
+
+---
 
 ## Hardware
 
@@ -31,14 +111,14 @@ A MicroPython project that reads oil pressure from an analog sensor via MCP3008 
 ## Wiring
 
 ### MCP3008 → Pico (SPI0)
-| MCP3008 | Pico |
-|---------|------|
-| VDD, VREF | 3.3V |
-| AGND, DGND | GND |
-| CLK | GP18 |
-| DOUT | GP16 |
-| DIN | GP19 |
-| CS | GP17 |
+| MCP3008 | Pico | Pico SPI Name |
+|---------|------|---------------|
+| VDD, VREF | 3.3V | Power |
+| AGND, DGND | GND | Ground |
+| CLK | GP18 | SCK |
+| DOUT | GP16 | MISO (data from MCP3008) |
+| DIN | GP19 | MOSI (data to MCP3008) |
+| CS/SHDN | GP17 | Chip Select |
 
 ### LCD → Pico (I2C0)
 | LCD | Pico |
@@ -48,7 +128,7 @@ A MicroPython project that reads oil pressure from an analog sensor via MCP3008 
 | VCC | 5V |
 | GND | GND |
 
-### Pressure Sensor
+### Pressure Sensor (with voltage divider)
 ```
 Sensor 0.5-4.5V output
         │
@@ -57,99 +137,59 @@ Sensor 0.5-4.5V output
         └──[15kΩ]──┴── GND
 ```
 
-## Project Structure
+---
 
-```
-blepico_oilgauge/
-├── main.py           # Main loop: ADC read, BLE send, LCD display
-├── ble_service.py    # BLE peripheral service (advertising, notifications)
-├── mcp3008.py        # MCP3008 SPI driver
-├── error_check.py    # Sensor fault detection
-├── display.py        # OLED display driver (optional SSD1306)
-├── client.py         # CLI BLE client
-├── client_gui.py     # GUI BLE client with gauge & graph
-└── README.md
-```
+## Building the Windows Client
 
-## Installation
-
-### Pico WH Setup
-
-1. Flash MicroPython to your Pico WH
-2. Install required libraries via Thonny:
-   - `i2c_lcd` (for 1602 LCD)
-3. Upload all `.py` files to the Pico
-4. Run `main.py`
-
-### PC Client Setup
+To build your own `.exe`:
 
 ```bash
-# Install dependencies
-pip install -r requirements.txt
-
-# Run CLI client
-python client.py
-
-# Run GUI client
-python client_gui.py
-```
-
-### Build Standalone Executable
-
-```bash
-# Install build dependencies
+cd client
 pip install pyinstaller
-
-# Build executable
 python build.py
-
-# Output: dist/OilGaugeMonitor.exe
 ```
+
+Output: `dist/OilGaugeMonitor.exe`
+
+---
 
 ## BLE Protocol
 
 **Service UUID:** `e7c9c910-7f6f-4b02-bc6d-1d9d3f3b0010`  
 **Characteristic UUID:** `e7c9c911-7f6f-4b02-bc6d-1d9d3f3b0010`
 
-**Data Format (3 bytes):**
-| Byte | Type | Description |
-|------|------|-------------|
-| 0-1 | u16 LE | PSI × 10 (0.1 PSI resolution) |
-| 2 | u8 | Error code |
+**Data Format:** String-based PSI values
+- Normal: `"42.50"` (PSI as string)
+- Error: `"ERR:VHIGH"` (error code)
 
-**Error Codes:**
-| Code | Meaning |
-|------|---------|
-| 0 | OK |
-| 1 | VHIGH - Over-voltage |
-| 2 | VLOW - Under-voltage |
-| 3 | SENSOR_OOR - Out of range |
-| 4 | FLOATING - Unstable signal |
-
-## GUI Features
-
-- **Gauge:** Radial dial with color-coded zones (green/yellow/red)
-- **Graph:** Rolling 100-sample history chart
-- **Recording:** Capture sessions with timestamps
-- **Save/Load:** Export to JSON for analysis
-- **Scan:** Discover nearby BLE devices
+---
 
 ## Calibration
 
-Adjust these values in `main.py` for your setup:
-
+Edit `pico/main.py`:
 ```python
-MCP3008_VREF = 3.30        # ADC reference voltage
-DIVIDER_RATIO = 25000/15000 # Voltage divider ratio (R1+R2)/R2
+MCP3008_VREF = 3.30         # ADC reference voltage
+DIVIDER_RATIO = 25000/15000 # Voltage divider ratio
 ```
 
-In `error_check.py`:
+Edit `pico/error_check.py`:
 ```python
-ADC_HIGH_THRESHOLD = 3.4   # Over-voltage limit
-ADC_LOW_THRESHOLD = 0.10   # Under-voltage limit
-SENSOR_MIN = 0.5           # Sensor minimum output
-SENSOR_MAX = 4.5           # Sensor maximum output
+ADC_HIGH_THRESHOLD = 3.4    # Over-voltage limit
+ADC_LOW_THRESHOLD = 0.10    # Under-voltage limit
+SENSOR_MIN = 0.5            # Sensor minimum output
+SENSOR_MAX = 4.5            # Sensor maximum output
 ```
+
+---
+
+## Roadmap / Future Improvements
+
+- [ ] **Full wiring diagram** with filtering capacitors and optimized voltage divider for cleaner signal (reducing noise from voltage amplifier)
+- [ ] **Orderable PCB** design (KiCad/EasyEDA files for custom board)
+- [ ] **Step-by-step video guide** for assembly and setup
+- [ ] **GUI improvements** - additional features and UI polish
+
+---
 
 ## License
 
