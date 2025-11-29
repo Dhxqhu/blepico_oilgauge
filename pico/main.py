@@ -52,6 +52,40 @@ i2c = I2C(0, scl=Pin(1), sda=Pin(0))
 lcd = I2cLcd(i2c, 0x27, 2, 16)
 
 # ------------------------------------
+# Boot sequence
+# ------------------------------------
+BOOT_DELAY_MS = 3000  # Time for capacitors to stabilize
+
+def boot_screen():
+    """Display boot sequence while hardware stabilizes."""
+    lcd.clear()
+    lcd.move_to(0, 0)
+    lcd.putstr("  Oil  Gauge  ")
+    lcd.move_to(0, 1)
+    lcd.putstr("  Monitor v1.0  ")
+    time.sleep_ms(1500)
+    
+    lcd.move_to(0, 1)
+    lcd.putstr("Initializing... ")
+    
+    # Progress bar while waiting for capacitors
+    lcd.move_to(0, 1)
+    progress = ""
+    steps = 16
+    step_time = BOOT_DELAY_MS // steps
+    for i in range(steps):
+        progress += chr(255)  # Full block character
+        lcd.move_to(0, 1)
+        lcd.putstr(progress)
+        time.sleep_ms(step_time)
+    
+    lcd.clear()
+    print("Boot sequence complete, starting main loop...")
+
+# Run boot sequence
+boot_screen()
+
+# ------------------------------------
 # Voltage conversion helpers
 # ------------------------------------
 def raw_to_adc_voltage(raw):
