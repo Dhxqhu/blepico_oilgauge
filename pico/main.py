@@ -22,7 +22,11 @@ _last_conn_state = None
 # ------------------------------------
 # Smoothing
 # ------------------------------------
-ALPHA = 0.25
+ADC_OVERSAMPLE = 4        # Take multiple samples and average
+ALPHA = 0.08              # EMA factor (lower = smoother, slower response)
+DEADBAND = 1.5            # Only update stable value if change > this many ADC counts
+raw_smooth = None         # Smoothed raw ADC value
+raw_stable = None         # Stable value with deadband (used for calculations)
 psi_smooth = None
 
 # ------------------------------------
@@ -112,9 +116,24 @@ while True:
     try:
         now = time.ticks_ms()
 
-        # Read ADC
-        raw = adc.read(0)
-        adc_voltage = raw_to_adc_voltage(raw)
+        # Read raw ADC value with oversampling
+        total = 0
+        for _ in range(ADC_OVERSAMPLE):
+            total += adc.read(0)
+        raw = total // ADC_OVERSAMPLE
+        
+        # Apply EMA smoothing to raw value
+        if raw_smooth is None:
+            raw_smooth = float(raw)
+            raw_stable = float(raw)
+        else:
+            raw_smooth = ALPHA * raw + (1.0 - ALPHA) * raw_smooth
+            # Only update stable value if smoothed moves beyond deadband
+            if abs(raw_smooth - raw_stable) > DEADBAND:
+                raw_stable = raw_smooth
+
+        # Use stable value for calculations (eliminates small oscillations)
+        adc_voltage = raw_to_adc_voltage(raw_stable)
         sensor_voltage = adc_to_sensor_voltage(adc_voltage)
         psi = voltage_to_psi(sensor_voltage)
 
@@ -143,7 +162,7 @@ while True:
         if psi_smooth is None:
             psi_smooth = psi
         else:
-            psi_smooth = ALPHA * psi + (1 - ALPHA) * psi_smooth
+            psi_smooth = ALPHA * psi + (1.0 - ALPHA) * psi_smooth
 
         # ---------- LCD updates (slower than main loop) ----------
         # Build the strings first (use rounded smoothed value for display)
@@ -175,8 +194,8 @@ while True:
         # ---------- Console output (prints with LCD updates, not every loop) ----------
         # Only print when LCD was just updated to reduce serial traffic
         if time.ticks_diff(now, _last_lcd_update_time) <= LOOP_SLEEP_MS:
-            print("Raw:{:<4} ADC:{:.3f}V  Sensor:{:.3f}V  PSI_raw:{:>5.2f} PSI_disp:{:>5.2f}  Err:{}"
-                  .format(raw, adc_voltage, sensor_voltage, psi, psi_smooth, error_code))
+            print("Raw:{:<4} Smooth:{:<6.1f} Stable:{:<6.1f} PSI:{:>5.2f}  Err:{}"
+                  .format(raw, raw_smooth, raw_stable, psi, error_code))
 
     except Exception as exc:
         print("Main loop exception:", exc)

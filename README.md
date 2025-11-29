@@ -182,9 +182,70 @@ SENSOR_MAX = 4.5            # Sensor maximum output
 
 ---
 
+## ADC Smoothing Configuration
+
+### Why Smoothing is Needed
+
+The analog signal path introduces noise that causes ADC readings to fluctuate:
+
+1. **Voltage divider resistors** - Resistor tolerance and thermal noise add small voltage variations
+2. **Voltage amplifier** - Op-amp circuits amplify both signal and noise
+3. **ADC quantization** - When the actual voltage sits right at the boundary between two digital levels (e.g., between 417 and 418), even tiny noise causes the reading to bounce back and forth between those values
+
+Even with hardware filtering capacitors (10µF + 100nF on signal and VREF), there's often residual 1-count oscillation. The software smoothing eliminates this jitter to provide stable, usable readings.
+
+### Smoothing Parameters
+
+Edit these values at the top of `pico/main.py`:
+
+```python
+ADC_OVERSAMPLE = 4    # Number of rapid samples to average
+ALPHA = 0.08          # EMA filter factor (0.0-1.0)
+DEADBAND = 1.5        # Minimum change to update stable value (ADC counts)
+```
+
+### How Each Parameter Works
+
+| Parameter | Default | Effect |
+|-----------|---------|--------|
+| `ADC_OVERSAMPLE` | 4 | Takes N rapid readings and averages them. Higher = less noise but slower reads. Try 4-16. |
+| `ALPHA` | 0.08 | Exponential Moving Average factor. **Lower = smoother but slower response**. **Higher = faster but more jitter**. Range: 0.05 (very smooth) to 0.3 (responsive). |
+| `DEADBAND` | 1.5 | Only updates the output when the smoothed value changes by more than this many ADC counts. Eliminates single-count oscillation. Try 1.0-3.0. |
+
+### Tuning Guide
+
+**If readings still jitter:**
+- Decrease `ALPHA` (try 0.05)
+- Increase `DEADBAND` (try 2.0 or 2.5)
+- Increase `ADC_OVERSAMPLE` (try 8)
+
+**If readings respond too slowly to real changes:**
+- Increase `ALPHA` (try 0.15)
+- Decrease `DEADBAND` (try 1.0)
+- Decrease `ADC_OVERSAMPLE` (try 2)
+
+### Smoothing Flow
+
+```
+Raw ADC → Oversample (average N reads) → EMA Filter → Deadband → Stable Output
+                                                                      ↓
+                                                            Used for PSI calculation
+```
+
+### Hardware Filtering (Recommended)
+
+For best results, add filtering capacitors to your circuit:
+- **10µF electrolytic + 100nF ceramic** in parallel on the sensor signal line
+- **10µF electrolytic + 100nF ceramic** in parallel on MCP3008 VREF
+
+This reduces noise at the hardware level before it reaches the ADC.
+
+---
+
 ## Roadmap / Future Improvements
 
-- [ ] **Full wiring diagram** with filtering capacitors and optimized voltage divider for cleaner signal (reducing noise from voltage amplifier)
+- [x] **Signal filtering** - hardware capacitors + software smoothing documented
+- [ ] **Full wiring diagram** with filtering capacitors and optimized voltage divider
 - [ ] **Orderable PCB** design (KiCad/EasyEDA files for custom board)
 - [ ] **Step-by-step video guide** for assembly and setup
 - [ ] **GUI improvements** - additional features and UI polish
